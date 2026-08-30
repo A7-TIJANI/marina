@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+.pnpm-store
+.yarn
+
+# Build output
+.next
+out
+dist
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Prisma
+prisma/migrations/migration_lock.toml
+
+# OS / Editor
+.DS_Store
+*.log
+*.swp
+*.swo
+.idea
+.vscode
+
+# Vercel
+.vercel

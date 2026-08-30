@@ -1,0 +1,194 @@
+// ============================================================
+// Marina v2 — Prisma schema (PostgreSQL)
+// Bilingual content uses JSONB {en, ar}. See spec §4 & §9.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  student
+  admin
+}
+
+enum Locale {
+  en
+  ar
+}
+
+enum ApplicationStatus {
+  negotiation
+  diploma_received
+  awaiting_payment
+  payment_confirmed
+  secondary_equivalence
+  admission
+  completed
+  cancelled
+}
+
+enum DocumentType {
+  passport_photo
+  secondary_diploma
+  transcript
+  admin_document
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  fullName          String   @map("full_name") @db.VarChar(200)
+  email             String   @unique @db.VarChar(255)
+  emailVerified     Boolean  @default(false) @map("email_verified")
+  emailVerifyToken  String?  @unique @map("email_verify_token") @db.VarChar(255)
+  phone             String?  @db.VarChar(30)
+  passwordHash      String   @map("password_hash") @db.VarChar(255)
+  role              UserRole @default(student)
+  preferredLang     Locale   @default(en) @map("preferred_lang")
+  isActive          Boolean  @default(true) @map("is_active")
+  tokenVersion      Int      @default(0) @map("token_version")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  applications      Application[]        @relation("StudentApplications")
+  paymentsConfirmed Application[]        @relation("PaymentConfirmedBy")
+  documentsUploaded Document[]           @relation("DocumentUploadedBy")
+  historyEntries    ApplicationHistory[] @relation("HistoryChangedBy")
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+/// JSONB shape for all bilingual fields: { en: string, ar?: string }
+model University {
+  id          Int      @id @default(autoincrement())
+  name        Json // { en, ar? }
+  description Json? // { en, ar? }
+  city        String   @db.VarChar(100)
+  websiteUrl  String?  @map("website_url") @db.VarChar(255)
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  applications Application[]
+
+  @@map("universities")
+}
+
+model Application {
+  id                   Int               @id @default(autoincrement())
+  studentId            Int               @map("student_id")
+  student              User              @relation("StudentApplications", fields: [studentId], references: [id], onDelete: Restrict)
+  universityId         Int               @map("university_id")
+  university           University        @relation(fields: [universityId], references: [id], onDelete: Restrict)
+  desiredProgramme     String            @map("desired_programme") @db.VarChar(255)
+  notes                String?           @db.Text
+  status               ApplicationStatus @default(negotiation)
+  paymentConfirmedAt   DateTime?         @map("payment_confirmed_at")
+  paymentConfirmedById Int?              @map("payment_confirmed_by")
+  paymentConfirmedBy   User?             @relation("PaymentConfirmedBy", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
+  paymentAmount        Decimal?          @map("payment_amount") @db.Decimal(10, 2)
+  paymentCurrency      String?           @default("USD") @map("payment_currency") @db.VarChar(3)
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  history   ApplicationHistory[]
+  documents Document[]
+
+  @@index([studentId])
+  @@index([status])
+  @@map("applications")
+}
+
+model ApplicationHistory {
+  id            Int                @id @default(autoincrement())
+  applicationId Int                @map("application_id")
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedById   Int                @map("changed_by")
+  changedBy     User               @relation("HistoryChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+  oldStatus     ApplicationStatus? @map("old_status")
+  newStatus     ApplicationStatus  @map("new_status")
+  comment       String?            @db.Text
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  @@index([applicationId])
+  @@map("application_history")
+}
+
+/// Unified table for both student uploads (passport/diploma) and admin
+/// uploads (admin_document). See spec §4 "documents" table rules.
+model Document {
+  id             Int          @id @default(autoincrement())
+  applicationId  Int          @map("application_id")
+  application    Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedById   Int          @map("uploaded_by")
+  uploadedBy     User         @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  documentType   DocumentType @map("document_type")
+  label          Json? // { en, ar? } — only for admin_document
+  fileUrl        String       @map("file_url") @db.VarChar(500)
+  fileSizeKb     Int          @map("file_size_kb")
+  mimeType       String       @map("mime_type") @db.VarChar(50)
+  isVerified     Boolean      @default(false) @map("is_verified")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([applicationId])
+  @@map("documents")
+}
+
+model Faq {
+  id        Int      @id @default(autoincrement())
+  question  Json // { en, ar? }
+  answer    Json // { en, ar? }
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("faqs")
+}
+
+model CountryInfo {
+  id         Int      @id @default(autoincrement())
+  sectionKey String   @unique @map("section_key") @db.VarChar(50)
+  title      Json // { en, ar? }
+  content    Json // { en, ar? }
+  sortOrder  Int      @default(0) @map("sort_order")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("country_info")
+}
+
+model ContactMessage {
+  id          Int      @id @default(autoincrement())
+  senderName  String   @map("sender_name") @db.VarChar(150)
+  senderEmail String   @map("sender_email") @db.VarChar(150)
+  message     String   @db.Text
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("contact_messages")
+}
+
+/// Immutable log of every significant action. See spec §12.
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   @db.VarChar(50)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   Int      @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
