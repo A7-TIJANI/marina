@@ -22,7 +22,7 @@ export default function ContactPage() {
             {locale === 'ar' ? 'تفضّل بالتواصل معنا مباشرة عبر واتساب للردّ الأسرع' : 'For a faster reply, reach us directly on WhatsApp'}
           </p>
           <a
-            href="https://wa.me/250780000000"
+            href="https://wa.me/250794099978"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
