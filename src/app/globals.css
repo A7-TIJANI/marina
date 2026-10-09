@@ -42,14 +42,3 @@ body {
   line-height: 1.75;
 }
 
-.skip-link {
-  position: absolute;
-  top: 0;
-  z-index: 999;
-  padding: 0.5rem 1rem;
-  background: white;
-}
-.skip-link:focus {
-  left: 0.5rem;
-  top: 0.5rem;
-}
