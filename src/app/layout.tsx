@@ -25,9 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang={locale} dir={dict.dir}>
       <body className={`${cairo.variable} min-h-screen bg-white font-sans text-slate-900 antialiased`}>
-        <a href="#main-content" className="skip-link">
-          Skip to content
-        </a>
         <Navbar />
         <main id="main-content">{children}</main>
         <Footer />
